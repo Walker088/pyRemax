@@ -1,0 +1,17 @@
+{% if PG %}
+postgres:
+  USER: "{{ PG.USER }}"
+  PASS: "{{ PG.PASS }}"
+  NAME: "{{ PG.DB_NAME }}"
+  SCHEMA: "{{ PG.SCHEMA }}"
+  HOST: "{{ PG.HOST }}"
+  PORT: "{{ PG.PORT }}"
+{% endif %}
+
+{% if FTP %}
+ftp:
+  FTP_HOST: "{{ FTP.HOST }}"
+  FTP_USER: "{{ FTP.USER }}"
+  FTP_PASSWORD: "{{ FTP.PASSWORD }}"
+  PATH: "{{ FTP.PATH }}"
+{% endif %}
