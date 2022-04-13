@@ -3,7 +3,7 @@
 ## Environment Setup
 Create a file named **.proj.env** from **.proj.env.example**
 
-## Python and Selenium Setup
+## Python and Selenium Setup on Ubuntu 20.04
 
 ```bash
 $ python3 venv venv
@@ -25,3 +25,13 @@ CREATE SCHEMA IF NOT EXISTS paraguay AUTHORIZATION postgres; --modify the user n
 $ bash migratedb.sh migrate
 $ bash migratedb.sh info
 ```
+
+## Docker commands
+```bash
+$ bash shell/dockercmd build
+$ bash shell/dockercmd start
+$ bash shell/dockercmd stop
+$ bash shell/dockercmd run
+$ bash shell/dockercmd rm
+```
+

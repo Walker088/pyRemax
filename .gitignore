@@ -2,6 +2,7 @@
 pyremax/pyremax/pg.conf.yml
 .vscode/
 .proj.env
+crontab
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

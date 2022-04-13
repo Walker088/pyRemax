@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-export $(xargs < .proj.env)
+#export $(xargs < .proj.env)
+export $(grep -v '^#' .proj.env | xargs)
+export FLYWAY_URL="jdbc:postgresql://$PG_HOST:$PG_PORT/$PG_DB_NAME"
 
 flywayBaseline() {
     docker run --rm --network host -v "$(pwd)/flyway:/flyway/sql"\

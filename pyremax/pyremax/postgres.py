@@ -1,9 +1,12 @@
 
 import psycopg2 as pgd
 import yaml
+import pathlib
+
+crr_file_path = pathlib.Path(__file__).parent.resolve()
 
 def getPgConfig() -> dict:
-    with open("pyremax/pyremax/pg.conf.yml", "r") as f:
+    with open(f"{crr_file_path}/pg.conf.yml", "r") as f:
         config = yaml.safe_load(f)
         return {
             "USER": config.get("postgres").get("USER"),

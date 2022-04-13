@@ -2,10 +2,13 @@
 import scrapy
 import logging
 import yaml
+import os
+import pathlib
 from time import sleep
 from random import randint
 from re import sub
 from decimal import Decimal, ROUND_HALF_UP
+from scrapy.utils.project import get_project_settings
 
 from pyremax.items import PyremaxItem as container
 
@@ -16,14 +19,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-
 from selenium.webdriver.remote.remote_connection import LOGGER as SeleniumLogger
 from urllib3.connectionpool import log as UrllibLogger
 
 getCurrencyVal = lambda c : Decimal(sub(r"[^\d.]", "", c))
 
 def getFtpStorePath() -> dict:
-    with open("pyremax/pyremax/pg.conf.yml", "r") as f:
+    crr_parent_path = pathlib.Path(__file__).parent.parent.resolve()
+    with open(f"{crr_parent_path}/pg.conf.yml", "r") as f:
         config = yaml.safe_load(f)
         ftp = {
             "FTP_HOST": config.get("ftp").get("FTP_HOST"),
@@ -55,7 +58,7 @@ class RemaxSpider(scrapy.Spider):
         opts = FirefoxOpts()
         opts.log.level = "INFO"
         opts.add_argument("--headless")
-        self.driver = webdriver.Firefox(options=opts)
+        self.driver = webdriver.Firefox(options=opts, service_log_path=os.devnull)
         self.imgDriver = webdriver.Firefox(options=opts)
 
     def parse_page(self) -> list:
@@ -115,8 +118,8 @@ class RemaxSpider(scrapy.Spider):
         return estateLst
 
     def parse(self, response):
-        for page in range(1, 500):
-        #for page in range(1, 2):
+        REMAX_MAX_PAGE_NUM = self.settings.getint('REMAX_MAX_PAGE_NUM')
+        for page in range(1, REMAX_MAX_PAGE_NUM):
             try:
                 self.driver.get(f"{response.url}?CurrentPage={page}")
                 estateLst = self.parse_page()
