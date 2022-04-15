@@ -1,5 +1,5 @@
 
-ALTER TABLE remax_realestate ALTER column prop_price TYPE INT8;
+ALTER TABLE paraguay.remax_realestate ALTER column prop_price TYPE INT8;
 
 CREATE TABLE IF NOT EXISTS paraguay.spider_exec_history (
     spider_name TEXT NOT NULL,

@@ -3,14 +3,17 @@ import scrapy
 import logging
 import yaml
 import os
+import json
 import pathlib
+import requests as rq
 from time import sleep
 from random import randint
 from re import sub
 from decimal import Decimal, ROUND_HALF_UP
 from scrapy.utils.project import get_project_settings
 
-from pyremax.items import PyremaxItem as container
+from pyremax.items import PyremaxItem
+from pyremax.items import MiticPostalItem
 
 # selenium
 from selenium import webdriver
@@ -37,12 +40,14 @@ def getFtpStorePath() -> dict:
         return f'ftp://{ftp["FTP_USER"]}:{ftp["FTP_PASSWORD"]}@{ftp["FTP_HOST"]}/{ftp["PATH"]}'
 
 class RemaxSpider(scrapy.Spider):
-    name = 'remax'
-    allowed_domains = ['www.remax.com.py']
-    start_urls = ['https://www.remax.com.py/PublicListingList.aspx']
+    name = "remax"
+    allowed_domains = ["www.remax.com.py"]
+    start_urls = ["https://www.remax.com.py/PublicListingList.aspx"]
+    PY_GEO_API = "https://codigopostal.paraguay.gov.py/dinacopa/zona/geometry"
     custom_settings = {
         "ITEM_PIPELINES": {
             "pyremax.pipelines.PyremaxPipeline": 100,
+            "pyremax.pipelines.PyremaxPostalPipeline": 150,
             "pyremax.pipelines.PyremaxImgPipeline": 200,
         },
         "IMAGES_STORE": getFtpStorePath(),
@@ -60,6 +65,12 @@ class RemaxSpider(scrapy.Spider):
         opts.add_argument("--headless")
         self.driver = webdriver.Firefox(options=opts, service_log_path=os.devnull)
         self.imgDriver = webdriver.Firefox(options=opts)
+
+    def start_requests(self):
+        """
+        Using a dummy website to start scrapy request
+        """
+        yield scrapy.Request(url="http://quotes.toscrape.com", callback=self.parse)
 
     def parse_page(self) -> list:
         estateLst = []
@@ -80,7 +91,7 @@ class RemaxSpider(scrapy.Spider):
                     rawLinkWebEle = self.driver.find_elements(By.XPATH, f"//div[@id='{propId}']//span[contains(@class, 'gallery-price-main')]/a")
                     rawLocationWebEle = self.driver.find_elements(By.XPATH, f"//div[@id='{propId}']//i[@data-lat or @data-lng]")
 
-                    estate = container()
+                    estate = PyremaxItem()
                     estate["remaxProdId"] = propId
                     estate["businessType"] = rawBusinessTypeWebEle[0].text if len(rawBusinessTypeWebEle) == 1 else None
                     estate["propTitle"] = rawPropTitleWebEle[0].get_attribute("title") if len(rawPropTitleWebEle) == 1 else None
@@ -103,6 +114,7 @@ class RemaxSpider(scrapy.Spider):
                     estate["location"] = f'POINT({estate["longitud"]} {estate["latitud"]})' if estate["latitud"] is not None and estate["longitud"] is not None else None
                     estateLst.append(estate)
                 except Exception as e:
+                    self.logger.error("Parse Remax Prop Info Error")
                     self.logger.error(e)
             for e in estateLst:
                 if e["propLink"] is not None:
@@ -112,22 +124,44 @@ class RemaxSpider(scrapy.Spider):
                         imgs = wait.until(EC.presence_of_all_elements_located( (By.XPATH, "//div[contains(@class, 'sp-image-container')]/img") ))
                         if(len(imgs) > 0): e["imageLst"] = [ i.get_attribute("data-medium") for i in imgs ]
                     except Exception as e:
+                        self.logger.error("Get Property Img Error")
                         self.logger.error(e)
-        except TimeoutException:
-            self.logger.error("TimeoutException")
+            for e in estateLst:
+                if e["location"] is not None:
+                    try:
+                        resp = rq.get(f'{self.PY_GEO_API}?latitud={e["latitud"]}&longitud={e["longitud"]}').json()
+                        e["dpto"] = resp.get("properties").get("dpto")
+                        e["distrito"] = resp.get("properties").get("distrito")
+                        e["barloc"] = resp.get("properties").get("barloc")
+                        e["postalInfo"] = MiticPostalItem(
+                                dpto = resp.get("properties").get("dpto"),
+                                dpto_desc = resp.get("properties").get("dpto_desc"),
+                                distrito = resp.get("properties").get("distrito"),
+                                dist_desc = resp.get("properties").get("dist_desc"),
+                                barloc = resp.get("properties").get("barloc"),
+                                barloc_desc = resp.get("properties").get("barloc_desc"),
+                                cod_post = resp.get("properties").get("cod_post"),
+                                barrio_polygon = json.dumps(resp.get("geometry"))
+                            )
+                    except Exception as e:
+                        self.logger.error("Query Mitic Postal Info Error")
+                        self.logger.error(e)
+        except Exception as e:
+            self.logger.error("Selenium Get Remax Main Page Error")
+            self.logger.error(e)
         return estateLst
 
     def parse(self, response):
         REMAX_MAX_PAGE_NUM = self.settings.getint('REMAX_MAX_PAGE_NUM')
         for page in range(1, REMAX_MAX_PAGE_NUM):
             try:
-                self.driver.get(f"{response.url}?CurrentPage={page}")
+                self.driver.get(f"{self.start_urls[0]}?CurrentPage={page}")
                 estateLst = self.parse_page()
                 for e in estateLst: yield e
 
                 sleep(randint(1, self.max_page_toggling_delay))
             except Exception:
-                self.driver.get(f"{response.url}?CurrentPage={page}")
+                self.driver.get(f"{self.start_urls[0]}?CurrentPage={page}")
                 estateLst = self.parse_page()
                 for e in estateLst: yield e
 

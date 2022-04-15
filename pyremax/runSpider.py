@@ -34,6 +34,8 @@ def InitCrawlerConfigs():
 def StartCrawler():
     REMAX_MAX_PAGE_NUM = int(environ.get("REMAX_MAX_PAGE_NUM", "2"))
     SCRAPY_LOG_LEVEL = environ.get("SCRAPY_LOG_LEVEL", "INFO")
+    #PY_GEO_API = environ.get("PY_GEO_API", None)
+
     process = CrawlerProcess(settings={
         "LOG_LEVEL": SCRAPY_LOG_LEVEL,
         "DEFAULT_REQUEST_HEADERS": {
@@ -46,7 +48,8 @@ def StartCrawler():
         "EXTENSIONS": {
             "pyremax.extensions.spider_stat_ext.SpiderStatExt": 100,
         },
-        "REMAX_MAX_PAGE_NUM": REMAX_MAX_PAGE_NUM
+        "REMAX_MAX_PAGE_NUM": REMAX_MAX_PAGE_NUM,
+        #"PY_GEO_API": PY_GEO_API,
     })
     process.crawl(RemaxSpider)
     process.start() # the script will block here until the crawling is finished
